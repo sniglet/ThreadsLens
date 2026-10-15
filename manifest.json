@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "ThreadsLens",
+  "version": "0.5.1",
+  "description": "Passive, human-paced signals about feed shaping and account authenticity on Threads. Local only.",
+  "permissions": ["storage", "unlimitedStorage"],
+  "host_permissions": ["https://www.threads.com/*", "https://www.threads.net/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.threads.com/*", "https://www.threads.net/*"],
+      "js": ["score.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

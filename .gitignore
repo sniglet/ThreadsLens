@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# builds and exports never belong in this public repo
+*.zip
+threadslens-*.csv
+threadslens-*.json
+node_modules/

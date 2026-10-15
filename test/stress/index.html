@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body style="background:#111;color:#fff;font:13px sans-serif"><main id="feed"></main>
+<script>
+const WORDS='soldering sourdough soccer firmware hiking capacitors dentist watchface coffee garage solar guitar marathon lasagna bicycle telescope gardening kayaking origami knitting chess pottery podcast fiddle compost mushroom lantern harbor glacier violin quilting archery rowing weaving pickling surfing climbing baking sketching camping cycling sailing painting running skating'.split(' ');
+let seq=0;
+window.batch=(k)=>{
+  let html='';
+  for(let j=0;j<k;j++,seq++){
+    const w=()=>WORDS[(seq*7+j*13+Math.floor(seq/3))%WORDS.length];
+    const handle='user'+(seq%900), stranger=seq%2, ageH=(seq%9)*3+1;
+    html+='<div data-pressable-container="true" class="p" style="padding:10px;border-top:1px solid #333"><a href="/@'+handle+'/post/p'+seq+'">p</a>'+(stranger?'<svg aria-label="Follow"></svg>':'')
+      +'<span dir="auto">'+w()+' '+w()+' '+w()+' number '+seq+'</span><time datetime="'+new Date(Date.now()-ageH*3600e3).toISOString()+'">x</time><svg aria-label="Like"></svg><svg aria-label="Reply"></svg><svg aria-label="Repost"></svg>'
+      +'<div>'+'<div><span>filler text node</span></div>'.repeat(25)+'</div></div>';
+  }
+  const feed=document.getElementById('feed'); feed.insertAdjacentHTML('beforeend',html); (window.__refs=window.__refs||[]); for(const el of [...feed.children].slice(-k)) window.__refs.push(new WeakRef(el));
+  while(feed.children.length>40) feed.firstElementChild.remove();
+};
+</script></body></html>

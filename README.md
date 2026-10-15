@@ -1,0 +1,17 @@
+# ThreadsLens
+Load: chrome://extensions → Developer mode → Load unpacked → select this folder. Open threads.com and read normally.
+- Overlay (top right): click to expand evidence, pause lookups, export CSV, clear data.
+- Dots on posts: green no signals · red emotional/bait · purple duplicate/flagged account · amber watch · grey not looked up.
+- "User glance" toggle (off by default): when on, looks up accounts of posts you have actually read, one every 40-110s, only while you are actively scrolling, max 25/hour, 15-min backoff on 429/5xx. Off = no extra requests at all.
+- Join date comes from you opening "About this profile" on an account (captured passively).
+- Tune: watchCohorts and fetch pacing in content.js CFG; lexicons and thresholds in score.js; DOM selectors in content.js SEL.
+- Each post has a small `dot  - 0 +` pill: the dot shows signals, and - / + set your own genuineness rating (-3..+3) for that account (click the number to reset). Your rating shifts the account's score, flips its level at +-2, applies to all its posts, and is saved in the accounts CSV as your_rating.
+- On a profile page (/@handle), a card shows that account's signals, joined/followers/threads, how many of its posts you've seen, and the same - 0 + rating. Follower count is read from the page itself, so no extra request is made.
+- Liker capture: open the likes list on any post; the accounts shown are recorded and scored. The panel summarizes likers per post owner (flagged / watch / joined within 3 months / join-spike months) so you can compare your posts with a popular account's. Late likes (arriving after 24h) are estimated from like-count snapshots when you revisit your posts. Export CSV adds threadslens-likers.csv.
+- BAIT chip: posts that look like engagement bait get a golden, softly pulsing chip (type on hover: comment-farm, opinion hook, giveaway/follow-for-follow, hype/urgency, relatable template). Disabled animation under reduced-motion. An account with >=40% bait among >=3 of its posts you saw gets a score bump.
+- Under the feed bars: a 48-hour graph of each reading (same colors), sampled at most every 5 minutes while you read and shown as 15-minute averages. Gaps mean you weren't reading.
+- Profile card reads the Threads and Replies tabs as you click them and judges activity against account age (old account, almost no posts/replies = parked-account pattern). Export CSV adds threads_seen / replies_seen / reposts_seen ("N+" = lower bound).
+- Export DOM sample (panel): structure-only snapshot of the posts on screen (no text or usernames) for fixing the page-reading code. posts CSV now has a `ctx` column; only home-feed reads drive the feed readings.
+- v0.4.1: join dates are captured from the About sheet even when it is not the first dialog (or has no dialog role); bios are cleaned of the N Followers / See the latest artifacts; bare MM/DD/YY text is treated as a timestamp.
+- v0.5.0: every home-feed post gets a chip as it arrives: NORMAL (followed, fresh) / NEUTRAL (fresh stranger) / THROTTLED (24h+ old stranger) / BASELINE (seen before, or the same stranger again) / EMOTIONAL / SHAPED. Hover for why. Panel toggle "Rate each post". The feed bars now come from these labels. Posts CSV has telltale and telltale_why.
+- v0.5.1: click a post's chip to re-categorize it (your label wins, shown with a pencil; Undo restores the automatic one; posts CSV gains telltale_user). Fixed a real memory leak (removed posts were never released) and capped stored accounts. The panel shows a Memory line. Stress test in test/stress/.
