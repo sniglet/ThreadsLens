@@ -11,6 +11,8 @@ ok(S.scorePost(post('What is your favorite hobby? 👇'), []).isBait, 'question 
 ok(S.scorePost(post('FOLLOW FOR FOLLOW giveaway tonight'), []).baitKinds.includes('giveaway / follow-for-follow'), 'giveaway');
 ok(!S.scorePost(post('Finished soldering the header today, tested fine'), []).isBait, 'normal post not bait');
 ok(S.scorePost(post('me when the build passes'), []).template, 'template');
+ok(!S.scorePost(post('The debt to income ratio is what the lender cares about'), []).isBait, '"ratio" as a plain word is not bait');
+ok(S.scorePost(post('ratio + L'), []).baitKinds.includes('hype / urgency'), '"ratio" as the whole reply is still bait');
 
 const a = S.scoreAccount({ handle: 'amy48291', joined: '2025-11', followers: 12, threads: 900, fetchedAt: 1 }, ['2025-11']);
 ok(a.level === 'flag' && a.reasons.length >= 3, 'suspicious account flagged with reasons');

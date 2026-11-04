@@ -10,7 +10,8 @@
       /\bturn on notifications\b/i]],
     ['hype / urgency', [/this is your sign/i, /nobody (talks|is talking) about/i, /let that sink in/i,
       /they don'?t want you to (know|see)/i, /\bwake up\b/i, /\bsave this\b/i, /\bshare this\b/i, /\brepost if\b/i,
-      /\bratio\b/i, /read that again/i]],
+      // "ratio" only as the whole reply ("ratio", "ratio + L"). As a plain word it was 25 of 32 hype hits and all 3 hype corrections.
+      /^\s*ratio\b.{0,15}$/i, /read that again/i]],
   ];
   const EMO = new Set(('disgusting outrageous furious pathetic traitor traitors corrupt evil terrifying insane ' +
     'unbelievable betrayed enemy enemies destroy destroyed crisis collapse exposed shocking cult sheep disgrace ' +

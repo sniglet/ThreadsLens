@@ -2,7 +2,7 @@
 
 Chrome MV3 extension (load unpacked) that passively reads the Threads feed as the owner (Mike) reads it and shows
 signals about (a) how the feed is being shaped and (b) how authentic posts/accounts look. Everything is local
-(`chrome.storage.local`); nothing is sent anywhere. Current version: see `manifest.json` (0.5.1).
+(`chrome.storage.local`); nothing is sent anywhere. Current version: see `manifest.json` (0.5.2).
 
 ## Files
 - `manifest.json`: content script on threads.com / threads.net; permissions `storage`, `unlimitedStorage`.
@@ -14,6 +14,7 @@ signals about (a) how the feed is being shaped and (b) how authentic posts/accou
   overlay panel (`refresh`), 48h history graph, per-post pill (`ensureBadge`, `placeInActionRow`), profile-page card (`renderProfileCard`),
   CSV/JSON export, backup import (`mergeStore`).
 - `test/smoke.js`: `node test/smoke.js` checks scoring behavior. Run it plus `node --check content.js score.js` after every edit.
+- `test/dom/`: extraction fixture built from a real DOM sample (quoted post, title-only icons); run instructions in `check.js`. Run it after touching `SEL`/`extract`/`metric`.
 
 ## Product decisions already made (do not re-litigate)
 - **Passive only.** Mike wants "look over my shoulder": the extension reads what is on screen as he reads. Claude must not scroll, click, or
@@ -27,6 +28,7 @@ signals about (a) how the feed is being shaped and (b) how authentic posts/accou
 - Feed readings (0..1 each): normal, baseline (shown as "Reticulating splines — continue scrolling"), throttled (weakest, inferred from stale posts),
   emotional, shaped. Window = last 30 read posts, needs 10. History sampled every 5 min, drawn as 15-minute buckets over 48 h.
   Planned idea: detect throttling by comparing Following tab vs For You; not built.
+- `ratio` counts as hype bait only when it is the whole reply (`ratio`, `ratio + L`); as a plain word it was 25 of 32 hype hits and all 3 hype corrections in the Nov 4 export.
 - Golden pulsing **BAIT** chip (ONE shared 100 ms timer sets its glow; never a per-element animation, see the leak section; respects reduced-motion) with bait kinds on hover; per-account bait rate (>=40% of >=3 posts => +0.15).
 - Phone use is the Threads app, which extensions cannot see; Mike tracks desktop (Chrome on his Mac "Keystone") only. A Safari/iOS port with CloudKit merge-sync was scoped and declined.
 - Not for store distribution; maybe 2-3 friends via zip, no support, lookups off by default.
@@ -103,8 +105,12 @@ The pane is usually **hidden**: `document.visibilityState` is 'hidden', smooth s
 version, and make fixtures poll scrollTop instead of listening for scroll events. Tool calls time out at 45 s, so start long jobs and poll in separate calls. The real Threads markup is still unverified.
 
 ## Known gaps / untested (verify against the real page first)
-- **Threads DOM selectors are guesses**: post container `[data-pressable-container="true"]`, links `a[href*="/post/"]`, `time[datetime]`,
-  icons via `svg[aria-label="Like"|"Reply"|"Repost"]`, follow control via `svg[aria-label="Follow"]`. If the panel stays on "Calibrating" or no pills appear, fix `SEL`/`extract` first.
+- **Threads DOM selectors** (v0.5.2, checked against a real home-feed DOM sample from Nov 2026): post container `[data-pressable-container="true"]`, links `a[href*="/post/"]`, `time[datetime]` are confirmed.
+  Action icons are `<svg role="img"><title>Like</title>` with NO aria-label (so every likes/replies/reposts value before 0.5.2 is empty); Follow has `aria-label="Follow"`.
+  `iconName()` reads aria-label or the child `<title>`; `metric()` reads the count only inside the icon's own button (climbing to the row read the next button's count).
+  **Quoted posts are nested containers**: the quote's action row comes first in DOM order. All reads go through `ownAll/ownOne` (element's nearest container must be this post);
+  on the home feed nested containers are skipped (before 0.5.2 they were recorded as followed, empty-text "Normal" arrivals: ~80 of 103 empty-text home rows), the outer post stores `quote` (CSV column).
+  Nesting on thread/profile pages is unverified, so nested containers there are still recorded. Fixture: `test/dom/` (structure from the sample, placeholder content).
 - About-this-profile dialog format is confirmed from a paste: `Name / Some Name (@handle) / Joined / October 2026 · 100M+` (the "100M+" meaning is unknown; stored raw as `joinedNote`, not scored).
 - The Post activity dialog parsing is verified only against a fixture built from the screenshot (52 rows, lazy loading, scan to the end). Unverified on real Threads: that Follow is a role=button/button, that rows are not virtualized away, that the time is the like time, and the second deep-lookup fetch pacing (only the first fetch was observed before the test was interrupted).
 - Join date is not in the profile HTML; it is captured only when Mike opens "About this profile". Followers/threads come from og:description meta on lookups or from page text on a profile page.
