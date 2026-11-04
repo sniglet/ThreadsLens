@@ -410,11 +410,7 @@
     a.cohortSpike = !!(a.joined && spikes.has(a.joined));
     let res = S.scoreAccount(a, CFG.watchCohorts);
     const r = a.rating || 0;
-    if (a.postN >= 3 && a.baitN / a.postN >= 0.4) {
-      const sc0 = Math.min(1, res.score + 0.15);
-      res = { score: +sc0.toFixed(2), reasons: res.reasons.concat(a.baitN + ' of ' + a.postN + ' posts you saw are engagement bait'),
-        level: sc0 >= 0.5 ? 'flag' : sc0 >= 0.25 ? 'watch' : 'ok' };
-    }
+    // (v0.5.2) the bait share no longer raises the score: bait is shown on the chip only
     if (!r) return res;
     const sc = Math.max(0, Math.min(1, res.score - r * 0.2));
     return { score: +sc.toFixed(2), reasons: res.reasons.concat('you rated ' + (r > 0 ? '+' : '') + r),
@@ -777,7 +773,7 @@
     const acc = store.accounts[it.rec.handle] || {}, r = acc.rating || 0;
     const reasons = [].concat(it.f.tags, it.acct.level === 'watch' || it.acct.level === 'flag' || r ? ['@' + it.rec.handle + ': ' + it.acct.reasons.join(', ')] : []);
     const auto = it.acct.level === 'flag' ? COLORS.shaped : it.f.dup ? COLORS.shaped
-      : it.f.tags.length ? COLORS.emotional : it.acct.level === 'watch' ? COLORS.throttled : it.acct.level === 'unknown' ? '#9aa' : COLORS.normal;
+      : (it.f.emo || it.f.conflict) ? COLORS.emotional : it.acct.level === 'watch' ? COLORS.throttled : it.acct.level === 'unknown' ? '#9aa' : COLORS.normal;
     // your rating takes precedence over post-level signals: vouching turns the dot green, distrust keeps it at the account level
     const color = r > 0 ? COLORS.normal : r < 0 ? (it.acct.level === 'flag' ? COLORS.shaped : COLORS.throttled) : auto;
     const chip = b.querySelector('.tl-bait');

@@ -28,8 +28,8 @@ signals about (a) how the feed is being shaped and (b) how authentic posts/accou
 - Feed readings (0..1 each): normal, baseline (shown as "Reticulating splines — continue scrolling"), throttled (weakest, inferred from stale posts),
   emotional, shaped. Window = last 30 read posts, needs 10. History sampled every 5 min, drawn as 15-minute buckets over 48 h.
   Planned idea: detect throttling by comparing Following tab vs For You; not built.
-- `ratio` counts as hype bait only when it is the whole reply (`ratio`, `ratio + L`); as a plain word it was 25 of 32 hype hits and all 3 hype corrections in the Nov 4 export.
-- Golden pulsing **BAIT** chip (ONE shared 100 ms timer sets its glow; never a per-element animation, see the leak section; respects reduced-motion) with bait kinds on hover; per-account bait rate (>=40% of >=3 posts => +0.15).
+- **Bait = obvious farming only, informational only (v0.5.2, Mike's call).** He found nearly every BAIT-tagged post was one he wanted to read. Kept: comment-farm (comment below/if, drop a heart/emoji or drop ... below, tag someone, say yes/amen, repost if, short question + pointing emoji), giveaway / follow-for-follow, bare `ratio` reply (as a plain word it was 25 of 32 hype hits). Removed: opinion hooks, hype phrases, relatable templates (`template` is still computed, not tagged). Bait no longer makes a post Emotional, no longer reddens the dot, and no longer counts in `acctScore`/`judgeAccount`. Nov 4 export: 73 tagged -> 5. Do not re-add conversational patterns.
+- Golden pulsing **BAIT** chip (ONE shared 100 ms timer sets its glow; never a per-element animation, see the leak section; respects reduced-motion) with bait kinds on hover.
 - Phone use is the Threads app, which extensions cannot see; Mike tracks desktop (Chrome on his Mac "Keystone") only. A Safari/iOS port with CloudKit merge-sync was scoped and declined.
 - Not for store distribution; maybe 2-3 friends via zip, no support, lookups off by default.
 
@@ -56,7 +56,7 @@ Only `ctx === 'home'` posts are rated (profile/thread posts show no chip); the u
 re-checked, because the Follow badge can render late. Priority: Shaped > Emotional > Throttled > Baseline > Normal, else Neutral (needs score >= 0.4):
 - **Throttled**: older than `STALE_H` = 24 h AND from an account you do not follow (older posts filling in for fresh ones). Score 0.5 at 24 h rising to 1.0 at 4 days. Followed accounts' old posts are Normal (they just post rarely).
 - **Baseline**: you saw this exact post in an earlier feed view (> 10 min ago; the guard avoids Threads recycling nodes while you scroll), or a non-followed author already had >= 2 of your last 40 arrivals.
-- **Emotional**: charged language (`emo`), heavy arguing underneath (reply:like, needs engagement counts which are still empty), or non-template engagement bait.
+- **Emotional**: charged language (`emo`), or heavy arguing underneath (reply:like; counts are read from v0.5.2). Not bait.
 - **Shaped**: wording nearly identical to another author (only later copies are flagged, the first one keeps its label) or an account with the `flag` level.
 - **Normal**: followed and not stale (assumes: on the home feed, NO Follow control means followed; unverified on real Threads). **Neutral** = fresh post from a stranger with nothing unusual (46% of the real feed).
 Headline logic: the strongest anomaly bar >= 0.4 names the feed; Normal only when nothing else shows. `SAT.throttled = 0.4` (needs ~5 stale strangers in the last 30) was chosen from the real data: it fired in 30% of morning windows and ~0% of the rest of the day; 0.25 fired all day.
@@ -135,6 +135,6 @@ liker, likedPosts[], postN, baitN, tabs{threads|replies|reposts:{n,complete,at}}
   run `node --check`, and run `node test/smoke.js`. Tell Mike to reload at `chrome://extensions` AND refresh the Threads tab (an orphaned old script shows
   "Extension context invalidated" until the tab is refreshed; the code handles this with a "refresh this page" message).
 - Evidence of coordination to look for in exports: join-month spikes, near-duplicate phrasing across authors, late/fast likes, handles ending in many digits,
-  high output with tiny audience, high bait share. Use his `your_rating` CSV column as labels to retune weights.
+  high output with tiny audience. Use his `your_rating` CSV column as labels to retune weights.
 - Do not attribute activity to state actors from this data; at most say "coordinated, motivation unclear".
 - Mike's iCloud lesson (data loss from a beta on his main Apple ID) applies if sync is ever built: use record-based merge, not a shared file.
