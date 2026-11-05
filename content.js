@@ -111,8 +111,14 @@
     // NEXT button's count ("Reply" with no count would read Share's "231").
     const btn = svg.closest('[role="button"], button, a') || svg.parentElement;
     if (!c.contains(btn)) return null;
-    const txt = [...btn.querySelectorAll('span')].filter((s) => !s.closest('svg')).map((s) => s.textContent.trim()).join(' ');
-    const m = txt.match(/[\d.,]+\s*[KMB]?$/i);
+    // Threads shows no number at zero, so an icon with no count is 0 (null stays "icon not found").
+    const box = [...btn.querySelectorAll('span[dir="auto"]')].find((s) => !s.closest('svg'));
+    if (!box || !box.textContent.trim()) return 0;
+    // While a count changes, Threads renders an odometer: the old and new value as sibling groups of one-character spans
+    // (real sample: "1 2 8" then "1 2 9"; textContent "128129"). Use the LAST group (the incoming value).
+    const groups = [...box.querySelectorAll('span')].filter((s) => s.children.length > 1 && [...s.children].every((k) => k.tagName === 'SPAN' && !k.children.length));
+    const txt = (groups.length ? groups[groups.length - 1] : box).textContent.trim();
+    const m = txt.match(/^[\d.,]+\s*[KMB]?$/i);
     return m ? parseCount(m[0]) : null;
   };
   const extract = (c) => {

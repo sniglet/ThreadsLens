@@ -10,7 +10,7 @@ window.runDomCheck = async () => {
   for (const f of ['/score.js', '/content.js']) (0, eval)(await (await fetch(f)).text());
   await new Promise((r) => setTimeout(r, 1200));   // let the first scan run
   const posts = [...document.querySelectorAll('#feed > [data-pressable-container]')];
-  const [outer, followed] = posts.map((c) => window.__tlExtract(c));
+  const [outer, odo, followed] = posts.map((c) => window.__tlExtract(c));
   const quoted = window.__tlExtract(posts[0].querySelector('[data-pressable-container] [data-pressable-container]'));
   const tagged = [...document.querySelectorAll('[data-tl-id]')].map((c) => c.dataset.tlId);
   const results = [];
@@ -24,9 +24,11 @@ window.runDomCheck = async () => {
   ok(outer.ts === Date.parse('2026-11-03T10:21:46.000Z'), 'outer time is its own', outer.ts);
   ok(quoted.likes === 17100 && quoted.handle === 'quoted_user', 'quoted post read on its own', [quoted.handle, quoted.likes]);
   ok(followed.likes === 80, 'followed likes', followed.likes);
-  ok(followed.replies === null && followed.reposts === null, 'missing counts stay null (no bleed from Share)', [followed.replies, followed.reposts]);
+  ok(followed.replies === 0 && followed.reposts === 0, 'icon without a number is 0 (no bleed from Share\'s 9)', [followed.replies, followed.reposts]);
   ok(followed.followed === null, 'no Follow control => unknown at extract time', followed.followed);
-  ok(tagged.length === 2 && !tagged.includes('QUOTED1'), 'home scan skips the nested quote', tagged);
+  ok(odo.likes === 120 && odo.reposts === 129, 'animating odometer counts read as the incoming value', [odo.likes, odo.reposts]);
+  ok(odo.replies === 24, 'plain count next to odometers', odo.replies);
+  ok(tagged.length === 3 && !tagged.includes('QUOTED1'), 'home scan skips the nested quote', tagged);
   const pill = posts[0].querySelector('.tl-badge');
   ok(pill && pill.parentElement.classList.contains('row') && !posts[0].querySelector(':scope [data-pressable-container] .tl-badge'),
     'pill goes in the OUTER action row', pill && pill.parentElement.className);
