@@ -1,16 +1,17 @@
 // Pure scoring functions. No DOM, no network. Tunable lexicons live at the top.
 (() => {
   // [kind, patterns]: the kind names are shown on the BAIT badge tooltip.
+  // v0.5.2: OBVIOUS farming only. Opinion hooks ("would you...?", "be honest", "who else"), hype phrases ("wake up",
+  // "share this") and relatable templates were removed: on the Nov 4 export they caught ordinary conversation, and the user
+  // found nearly every BAIT-tagged post was one he wanted to read. Bait is informational only (the chip); it no longer
+  // makes a post Emotional or counts against an account.
   const BAIT_KINDS = [
-    ['comment-farm', [/\bcomment\b.*\b(below|if|your)\b/i, /\bdrop (a|your)\b/i, /\btag (a|someone)\b/i, /\bsay (yes|amen)\b/i, /\bsay no\b(?!\s+more)/i,
-      /\breply with\b/i, /\bgive me your\b/i, /\bname (a|one|your)\b/i]],
-    ['opinion hook', [/unpopular opinion/i, /hot take/i, /change my mind/i, /\bwho else\b/i, /\b(agree|thoughts)\?/i,
-      /am i the only one/i, /be honest/i, /\bwould you\b.*\?/i, /\bwhich (one|is)\b.*\?/i]],
+    ['comment-farm', [/\bcomment (below|if)\b/i, /\bdrop (a|an|your)\b.{0,25}\b(below|comments?)\b/i,
+      /\bdrop (a|an|your) (heart|emoji|like|\u2764|\u{1F525}|\u{1F447})/iu, /\btag (someone|a friend)\b/i, /\bsay (yes|amen)\b/i, /\brepost if\b/i]],
     ['giveaway / follow-for-follow', [/\bgiveaway\b/i, /\bfollow (me|for|back)\b/i, /\bf4f\b/i, /\bfollow4follow\b/i,
       /\bturn on notifications\b/i]],
-    ['hype / urgency', [/this is your sign/i, /nobody (talks|is talking) about/i, /let that sink in/i,
-      /they don'?t want you to (know|see)/i, /\bwake up\b/i, /\bsave this\b/i, /\bshare this\b/i, /\brepost if\b/i,
-      /\bratio\b/i, /read that again/i]],
+    // "ratio" only as the whole reply ("ratio", "ratio + L"). As a plain word it was 25 of 32 hype hits and all 3 hype corrections.
+    ['ratio', [/^\s*ratio\b.{0,15}$/i]],
   ];
   const EMO = new Set(('disgusting outrageous furious pathetic traitor traitors corrupt evil terrifying insane ' +
     'unbelievable betrayed enemy enemies destroy destroyed crisis collapse exposed shocking cult sheep disgrace ' +
@@ -70,11 +71,10 @@
     // Calibrated on a real 1,900-post feed: caps/exclamations alone were enthusiasm (54 of 61 hits), so they only count alongside charged words.
     const emo = emotion >= 2 || (emotion >= 1 && (caps > 0.4 || excl >= 2));
     if (emo) tags.push('emotional language');
-    if (template) tags.push('recycled template');
     if (conflict) tags.push('high reply:like (conflict)');
     if (dup) tags.push('near-duplicate of ' + dup + ' other author(s)');
-    const isBait = bait > 0 || template;
-    const baitKinds = template ? kinds.concat('relatable template') : kinds;
+    const isBait = bait > 0;   // templates ("me when", "pov:") are kept as a feature but are not bait
+    const baitKinds = kinds;
     return { bait, isBait, baitKinds, emo, emotion, caps: +caps.toFixed(2), excl, template, conflict, dup, tags };
   }
 
@@ -135,7 +135,6 @@
     const em = [];
     if (f.emo) em.push('charged language');
     if (f.conflict) em.push('lots of arguing underneath');
-    if ((f.bait || 0) > 0) em.push('engagement bait (' + (f.baitKinds || []).filter((k) => k !== 'relatable template').join(', ') + ')');
     if (em.length) { sc.emotional = Math.min(1, 0.65 + 0.1 * em.length); why.emotional = em; }
     if (stale && !followed) {
       sc.throttled = 0.5 + 0.5 * Math.min(1, (age - STALE_H) / 72);
@@ -281,11 +280,10 @@
     if (/\d{4,}$/.test(a.handle || '') || /^[a-z]+_[a-z]+\d{3,}$/i.test(a.handle || '')) add(fake, 0.12, 'auto-style handle');
     if ((c.postN || 0) >= 3) {
       cats++;
-      if (c.baitN / c.postN >= 0.4) add(fake, 0.15, c.baitN + ' of ' + c.postN + ' of their posts you saw are engagement bait');
       if (c.dupN >= 1) add(fake, 0.15, c.dupN + ' of their posts nearly duplicate another account\'s wording');
       if (c.postN >= 4 && c.topic && c.topic.share >= 0.6) add(fake, 0.10, 'nearly every post circles the same topic ("' + c.topic.word + '")');
       if (c.postN >= 4 && c.emoN / c.postN >= 0.5) add(fake, 0.10, 'mostly emotionally charged posts');
-      if (c.postN >= 5 && !c.baitN && !c.dupN && (!c.topic || c.topic.share < 0.35)) add(real, 0.15, 'varied, non-bait posts (' + c.postN + ' seen)');
+      if (c.postN >= 5 && !c.dupN && (!c.topic || c.topic.share < 0.35)) add(real, 0.15, 'varied posts (' + c.postN + ' seen)');
     } else missing.push('their posts (3+ seen in your feed)');
     if ((c.likedN || 0) >= 3 && a.followers != null && a.followers < 100) add(fake, 0.10, 'liked ' + c.likedN + ' posts whose likes list you inspected, with almost no audience');
     const r = a.rating || 0;

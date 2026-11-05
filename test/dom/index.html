@@ -1,0 +1,76 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ThreadsLens DOM fixture</title>
+<!--
+  Structure copied from a real home-feed DOM sample (Nov 2026, via the panel's "Export DOM sample"); every handle, id,
+  text and number below is a placeholder. What it pins down:
+  - action icons are <svg role="img"><title>Like</title>...</svg> with NO aria-label (only Follow has one)
+  - a quoted post is a data-pressable-container nested inside the outer post, with its own action row FIRST in DOM order
+  See check.js for how to run it.
+-->
+<body>
+<div id="feed">
+
+  <!-- 1. stranger's post (Follow control on the avatar) that quotes another post -->
+  <div data-pressable-container="true">
+    <div><div role="button"><div><img></div>
+      <div role="button"><svg role="img" aria-label="Follow"><title>Follow</title><path/></svg></div></div></div>
+    <div><span><a role="link" href="/@outer_user"><span dir="auto"><span>outer_user</span></span></a></span>
+      <span dir="auto"><a role="link" href="/@outer_user/post/OUTER1"><time datetime="2026-11-03T10:21:46.000Z"><abbr aria-label="a day ago"><span>1d</span></abbr></time></a></span>
+      <div role="button"><svg role="img"><title>More</title><path/></svg></div></div>
+    <div><div><span dir="auto"><span>Outer post body text placeholder.</span></span></div>
+
+      <div data-pressable-container="true">
+        <div><a role="link" href="/@quoted_user"><img></a>
+          <a role="link" href="/@quoted_user"><span dir="auto"><span>quoted_user</span></span></a>
+          <span dir="auto"><a role="link" href="/@quoted_user/post/QUOTED1"><time datetime="2026-11-02T23:19:42.000Z"><abbr aria-label="2 days ago"><span>2d</span></abbr></time></a></span></div>
+        <div><a role="link" href="/@quoted_user/post/QUOTED1"><span dir="auto"><span>Quoted post body placeholder.</span></span></a></div>
+        <div>
+          <div role="button"><svg role="img"><title>Like</title><path/></svg><span dir="auto"><div><span>17.1K</span></div></span></div>
+          <div role="button"><svg role="img"><title>Reply</title><path/></svg><span dir="auto"><div><span>3.7K</span></div></span></div>
+          <div role="button"><svg role="img"><title>Repost</title><path/></svg><span dir="auto"><div><span>1.2K</span></div></span></div>
+          <div role="button"><svg role="img"><title>Share</title><path/></svg><span dir="auto"><div><span>231</span></div></span></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div role="button"><svg role="img"><title>Like</title><path/></svg><span dir="auto"><div><span>123</span></div></span></div>
+        <div role="button"><svg role="img"><title>Reply</title><path/></svg><span dir="auto"><div><span>1.1K</span></div></span></div>
+        <div role="button"><svg role="img"><title>Repost</title><path/></svg><span dir="auto"><div><span>7</span></div></span></div>
+        <div role="button"><svg role="img"><title>Share</title><path/></svg><span dir="auto"><div><span>2</span></div></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. a post you liked (icon title "Unlike") while its counts are animating: Threads renders old and new value as digit groups -->
+  <div data-pressable-container="true" id="odometer">
+    <div><a role="link" href="/@liked_user"><img></a></div>
+    <div><a role="link" href="/@liked_user"><span dir="auto"><span>liked_user</span></span></a>
+      <span dir="auto"><a role="link" href="/@liked_user/post/LIKED1"><time datetime="2026-11-04T23:42:15.000Z"><abbr aria-label="37 minutes ago"><span>37m</span></abbr></time></a></span></div>
+    <div><span dir="auto"><span>Liked post body placeholder.</span></span>
+      <div class="row">
+        <div role="button"><svg role="img"><title>Unlike</title><path/></svg><span dir="auto"><div><span><span>1</span><span>1</span><span>6</span></span><span><span>1</span><span>2</span><span>0</span></span></div></span></div>
+        <div role="button"><svg role="img"><title>Reply</title><path/></svg><span dir="auto"><div><span>24</span></div></span></div>
+        <div role="button"><svg role="img"><title>Repost</title><path/></svg><span dir="auto"><div><span><span>1</span><span>2</span><span>8</span></span><span><span>1</span><span>2</span><span>9</span></span></div></span></div>
+        <div role="button"><svg role="img"><title>Share</title><path/></svg><span dir="auto"><div><span>1.3K</span></div></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. followed account (no Follow control); Like has a count, Reply/Repost do not, Share does -->
+  <div data-pressable-container="true">
+    <div><a role="link" href="/@followed_user"><img></a></div>
+    <div><a role="link" href="/@followed_user"><span dir="auto"><span>followed_user</span></span></a>
+      <span dir="auto"><a role="link" href="/@followed_user/post/FOLLOWED1"><time datetime="2026-11-04T22:54:33.000Z"><abbr aria-label="35 minutes ago"><span>35m</span></abbr></time></a></span></div>
+    <div><span dir="auto"><span>Followed post body placeholder.</span></span>
+      <div class="row">
+        <div role="button"><svg role="img"><title>Like</title><path/></svg><span dir="auto"><div><span>80</span></div></span></div>
+        <div role="button"><svg role="img"><title>Reply</title><path/></svg></div>
+        <div role="button"><svg role="img"><title>Repost</title><path/></svg></div>
+        <div role="button"><svg role="img"><title>Share</title><path/></svg><span dir="auto"><div><span>9</span></div></span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>

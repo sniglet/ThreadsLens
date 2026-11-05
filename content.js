@@ -94,34 +94,56 @@
     if (!m) return null;
     return Math.round(parseFloat(m[1]) * ({ K: 1e3, M: 1e6, B: 1e9 }[(m[2] || '').toUpperCase()] || 1));
   };
-  const metric = (c, label) => {
-    const svg = c.querySelector('svg[aria-label="' + label + '"]');
+  // A quoted post is a whole post container nested inside the outer one (confirmed from a real DOM sample, Nov 2026).
+  // Everything read for a post must belong to IT, not to a post it quotes: the quote's Like row comes first in DOM order.
+  const own = (c, el) => el.closest(SEL.container) === c;
+  const ownAll = (c, sel) => [...c.querySelectorAll(sel)].filter((el) => own(c, el));
+  const ownOne = (c, sel) => ownAll(c, sel)[0] || null;
+  const nestedIn = (c) => !!(c.parentElement && c.parentElement.closest(SEL.container));
+  // Real Threads action icons carry the name in a child <title> ("Like", "Reply"...) and have NO aria-label;
+  // the Follow icon has both. Match either, so a markup change in one direction does not blind us again.
+  const iconName = (svg) => svg.getAttribute('aria-label') || ((svg.querySelector(':scope > title') || {}).textContent || '').trim();
+  const icon = (c, ...names) => ownAll(c, 'svg').find((s) => names.includes(iconName(s))) || null;
+  const metric = (c, ...names) => {
+    const svg = icon(c, ...names);
     if (!svg) return null;
-    let el = svg.closest('[role="button"], a, button') || svg.parentElement;
-    for (let i = 0; i < 3 && el; i++, el = el.parentElement) {
-      const m = (el.textContent || '').trim().match(/[\d.,]+\s*[KMB]?$/i);
-      if (m) return parseCount(m[0]);
-    }
-    return null;
+    // The count is a span inside the same button. Do not climb to the whole action row: its text ends with the
+    // NEXT button's count ("Reply" with no count would read Share's "231").
+    const btn = svg.closest('[role="button"], button, a') || svg.parentElement;
+    if (!c.contains(btn)) return null;
+    // Threads shows no number at zero, so an icon with no count is 0 (null stays "icon not found").
+    const box = [...btn.querySelectorAll('span[dir="auto"]')].find((s) => !s.closest('svg'));
+    if (!box || !box.textContent.trim()) return 0;
+    // While a count changes, Threads renders an odometer: the old and new value as sibling groups of one-character spans
+    // (real sample: "1 2 8" then "1 2 9"; textContent "128129"). Use the LAST group (the incoming value).
+    const groups = [...box.querySelectorAll('span')].filter((s) => s.children.length > 1 && [...s.children].every((k) => k.tagName === 'SPAN' && !k.children.length));
+    const txt = (groups.length ? groups[groups.length - 1] : box).textContent.trim();
+    const m = txt.match(/^[\d.,]+\s*[KMB]?$/i);
+    return m ? parseCount(m[0]) : null;
   };
   const extract = (c) => {
-    const link = c.querySelector(SEL.postLink);
+    const link = ownOne(c, SEL.postLink);
     if (!link) return null;
     const m = link.getAttribute('href').match(/^\/@([^/]+)\/post\/([^/?#]+)/);
     if (!m) return null;
-    const spans = [...c.querySelectorAll('span[dir="auto"]')]
+    const spans = ownAll(c, 'span[dir="auto"]')
       .filter((s) => !s.closest('a[href^="/@"]') && !s.closest('time') && !s.closest('[role="button"]'));
     const texts = spans.map((s) => s.textContent.trim()).filter(Boolean);
     if (S.isUnavailable(texts)) return null;
     const text = S.cleanBody(texts);
-    const t = c.querySelector(SEL.time);
+    const t = ownOne(c, SEL.time);
+    const inner = [...c.querySelectorAll(SEL.container)].find((q) => q !== c && q.parentElement.closest(SEL.container) === c);
+    const ql = inner && ownOne(inner, SEL.postLink);
+    const qm = ql && (ql.getAttribute('href') || '').match(/\/post\/([^/?#]+)/);
     return {
       id: m[2], handle: m[1], text,
       ts: t ? Date.parse(t.getAttribute('datetime')) : null,
-      likes: metric(c, 'Like') ?? metric(c, 'Unlike'), replies: metric(c, 'Reply'), reposts: metric(c, 'Repost'),
-      followed: c.querySelector(SEL.follow) ? false : null, // null = unknown; we only know when a Follow control is shown
+      likes: metric(c, 'Like', 'Unlike'), replies: metric(c, 'Reply'), reposts: metric(c, 'Repost'),
+      followed: ownOne(c, SEL.follow) ? false : null, // null = unknown; we only know when a Follow control is shown
+      quote: qm ? qm[1] : null,                        // id of the post this one quotes
     };
   };
+  window.__tlExtract = extract;   // for fixture tests
 
   // ---------- scan / observe ----------
   const io = new IntersectionObserver((entries) => {
@@ -159,12 +181,16 @@
         const old = store.posts[c.dataset.tlId];
         // the Follow badge can render a moment after the post itself: re-check for a few seconds after arrival
         if (old && old.tell && S.isFeedCtx(ctx) && Date.now() - old.tell.t < 5000) {
-          const f2 = c.querySelector(SEL.follow) ? false : true;
+          const f2 = ownOne(c, SEL.follow) ? false : true;
           if (f2 !== old.followed) { old.followed = f2; if (f2 === false && store.accounts[old.handle]) store.accounts[old.handle].followedSeen = false; rateArrival(old, { repeat: old.tell.rep, ar: old.tell.ar, keepUser: true }); save(); }
         }
         if (!observed.has(c)) { io.observe(c); observed.add(c); }
         ensureBadge(c); return;
       }
+      // A quoted post inside a home-feed post is not a feed arrival: it has no Follow control (so it read as "followed")
+      // and is often days old. A real export had ~80 such empty-text "Normal" rows. Elsewhere (threads, profiles) nesting
+      // is unverified, so those are still recorded; they do not drive feed readings anyway.
+      if (S.isFeedCtx(ctx) && nestedIn(c)) return;
       const x = extract(c); if (!x) return;
       c.dataset.tlId = x.id;
       const prev = store.posts[x.id];
@@ -390,11 +416,7 @@
     a.cohortSpike = !!(a.joined && spikes.has(a.joined));
     let res = S.scoreAccount(a, CFG.watchCohorts);
     const r = a.rating || 0;
-    if (a.postN >= 3 && a.baitN / a.postN >= 0.4) {
-      const sc0 = Math.min(1, res.score + 0.15);
-      res = { score: +sc0.toFixed(2), reasons: res.reasons.concat(a.baitN + ' of ' + a.postN + ' posts you saw are engagement bait'),
-        level: sc0 >= 0.5 ? 'flag' : sc0 >= 0.25 ? 'watch' : 'ok' };
-    }
+    // (v0.5.2) the bait share no longer raises the score: bait is shown on the chip only
     if (!r) return res;
     const sc = Math.max(0, Math.min(1, res.score - r * 0.2));
     return { score: +sc.toFixed(2), reasons: res.reasons.concat('you rated ' + (r > 0 ? '+' : '') + r),
@@ -438,8 +460,8 @@
     setTimeout(() => URL.revokeObjectURL(url), 30000);   // a blob URL pins its data in memory until revoked
   };
   const exportAll = () => {
-    download('threadslens-posts.csv', csv([['id', 'handle', 'kind', 'text', 'posted', 'likes', 'replies', 'reposts', 'followed', 'read', 'tags', 'seen', 'ctx', 'telltale', 'telltale_why', 'telltale_user']]
-      .concat(Object.values(store.posts).map((p) => [p.id, p.handle, p.kind, p.text, p.ts ? new Date(p.ts).toISOString() : '', p.likes, p.replies, p.reposts, p.followed, p.read, featOf(p).tags.join('; '), new Date(p.seenAt).toISOString(), p.ctx || '', p.tell ? p.tell.k : '', p.tell ? (p.tell.r || []).join('; ') : '', p.tell && p.tell.u ? p.tell.u : '']))));
+    download('threadslens-posts.csv', csv([['id', 'handle', 'kind', 'text', 'posted', 'likes', 'replies', 'reposts', 'followed', 'read', 'tags', 'seen', 'ctx', 'telltale', 'telltale_why', 'telltale_user', 'quote']]
+      .concat(Object.values(store.posts).map((p) => [p.id, p.handle, p.kind, p.text, p.ts ? new Date(p.ts).toISOString() : '', p.likes, p.replies, p.reposts, p.followed, p.read, featOf(p).tags.join('; '), new Date(p.seenAt).toISOString(), p.ctx || '', p.tell ? p.tell.k : '', p.tell ? (p.tell.r || []).join('; ') : '', p.tell && p.tell.u ? p.tell.u : '', p.quote || '']))));
     download('threadslens-likers.csv', csv([['post_owner', 'post_id', 'post_posted', 'liker', 'level', 'score', 'joined', 'followers', 'threads', 'your_rating', 'captured', 'liked_min_after_post']]
       .concat(Object.values(store.likers).flatMap((L) => Object.entries(L.handles).map(([hd, t]) => {
         const a = store.accounts[hd] || {}, sc = acctScore(hd);
@@ -714,10 +736,10 @@
 
   // Put the pill at the end of the Like/Reply/Repost/Share row; fall back to the post's bottom-right corner.
   function placeInActionRow(c, b) {
-    const like = c.querySelector('svg[aria-label="Like"], svg[aria-label="Unlike"]');
+    const like = icon(c, 'Like', 'Unlike'), has = (el, n) => [...el.querySelectorAll('svg')].some((s) => own(c, s) && iconName(s) === n);
     let row = like && like.parentElement;
-    while (row && row !== c && !row.querySelector('svg[aria-label="Reply"]')) row = row.parentElement;
-    if (row && row !== c && row.querySelector('svg[aria-label="Repost"]')) {
+    while (row && row !== c && !has(row, 'Reply')) row = row.parentElement;
+    if (row && row !== c && has(row, 'Repost')) {
       if (b.parentElement !== row) row.append(b);
       b.style.position = 'static'; b.style.marginLeft = 'auto'; b.style.alignSelf = 'center';
     } else if (b.parentElement !== c) {
@@ -757,7 +779,7 @@
     const acc = store.accounts[it.rec.handle] || {}, r = acc.rating || 0;
     const reasons = [].concat(it.f.tags, it.acct.level === 'watch' || it.acct.level === 'flag' || r ? ['@' + it.rec.handle + ': ' + it.acct.reasons.join(', ')] : []);
     const auto = it.acct.level === 'flag' ? COLORS.shaped : it.f.dup ? COLORS.shaped
-      : it.f.tags.length ? COLORS.emotional : it.acct.level === 'watch' ? COLORS.throttled : it.acct.level === 'unknown' ? '#9aa' : COLORS.normal;
+      : (it.f.emo || it.f.conflict) ? COLORS.emotional : it.acct.level === 'watch' ? COLORS.throttled : it.acct.level === 'unknown' ? '#9aa' : COLORS.normal;
     // your rating takes precedence over post-level signals: vouching turns the dot green, distrust keeps it at the account level
     const color = r > 0 ? COLORS.normal : r < 0 ? (it.acct.level === 'flag' ? COLORS.shaped : COLORS.throttled) : auto;
     const chip = b.querySelector('.tl-bait');

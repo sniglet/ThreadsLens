@@ -6,11 +6,19 @@ let fail = 0;
 const ok = (c, m) => { if (!c) { fail++; console.error('FAIL', m); } else console.log('ok  ', m); };
 const post = (t, o = {}) => ({ id: t, handle: 'a', text: t, ...o });
 
-ok(S.scorePost(post('Unpopular opinion: pineapple is fine. Who else?'), []).baitKinds.includes('opinion hook'), 'opinion hook');
+ok(!S.scorePost(post('Unpopular opinion: pineapple is fine. Who else?'), []).isBait, 'opinion questions are conversation, not bait');
+ok(!S.scorePost(post('Would you ever drive this thing? Be honest'), []).isBait, '"would you / be honest" is not bait');
+ok(!S.scorePost(post('Does anybody remember listening to this on the radio?'), []).isBait, 'nostalgia question is not bait');
+ok(!S.scorePost(post('Time to wake up early and share this with the team'), []).isBait, '"wake up" / "share this" are not bait');
+ok(!S.scorePost(post('Drop a line if you are in town'), []).isBait, '"drop a line" is not bait');
+ok(S.scorePost(post('Drop a heart if you agree'), []).isBait, '"drop a heart" is bait');
+ok(S.scorePost(post('Comment below and tag someone who needs this'), []).baitKinds.includes('comment-farm'), 'comment below / tag someone');
 ok(S.scorePost(post('What is your favorite hobby? 👇'), []).isBait, 'question + pointer emoji is bait');
 ok(S.scorePost(post('FOLLOW FOR FOLLOW giveaway tonight'), []).baitKinds.includes('giveaway / follow-for-follow'), 'giveaway');
 ok(!S.scorePost(post('Finished soldering the header today, tested fine'), []).isBait, 'normal post not bait');
-ok(S.scorePost(post('me when the build passes'), []).template, 'template');
+ok(S.scorePost(post('me when the build passes'), []).template && !S.scorePost(post('me when the build passes'), []).isBait, 'template is detected but is not bait');
+ok(!S.scorePost(post('The debt to income ratio is what the lender cares about'), []).isBait, '"ratio" as a plain word is not bait');
+ok(S.scorePost(post('ratio + L'), []).baitKinds.includes('ratio'), '"ratio" as the whole reply is still bait');
 
 const a = S.scoreAccount({ handle: 'amy48291', joined: '2025-11', followers: 12, threads: 900, fetchedAt: 1 }, ['2025-11']);
 ok(a.level === 'flag' && a.reasons.length >= 3, 'suspicious account flagged with reasons');
@@ -83,8 +91,9 @@ ok(TT(fe(plain, { followed: false, ageH: 10 })).key === 'neutral', 'a 10 h old s
 ok(TT(fe(plain, { followed: false, repeat: true })).key === 'baseline', 'seen before => Baseline');
 ok(TT(fe(plain, { followed: false, authorRecent: 3 })).key === 'baseline', 'same stranger again and again => Baseline');
 ok(TT(fe(plain, { followed: true, authorRecent: 3 })).key === 'normal', 'a followed author repeating is normal');
-ok(TT(fe('Unpopular opinion: this is the way', { followed: false })).key === 'emotional', 'bait from a stranger => Emotional');
-ok(TT(fe('Unpopular opinion: this is the way', { followed: true })).key === 'emotional', 'bait outranks Normal');
+ok(TT(fe('Drop a heart if you agree', { followed: false })).key === 'neutral', 'bait alone does not make a post Emotional');
+ok(TT(fe('Drop a heart if you agree', { followed: true })).key === 'normal', 'bait from a followed account stays Normal');
+ok(TT(fe('This is disgusting and corrupt', { followed: true })).key === 'emotional', 'charged language is still Emotional');
 ok(TT(fe(plain, { followed: false, acct: { level: 'flag' } })).key === 'shaped', 'flagged account => Shaped');
 ok(TT(fe(plain, { followed: false, f: Object.assign(S.scorePost(post(plain), []), { dup: 2 }) })).key === 'shaped', 'copied wording => Shaped');
 ok(TT(fe(plain, { followed: null })) === null, 'not on the home feed => not rated');

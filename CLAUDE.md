@@ -2,7 +2,7 @@
 
 Chrome MV3 extension (load unpacked) that passively reads the Threads feed as the owner (Mike) reads it and shows
 signals about (a) how the feed is being shaped and (b) how authentic posts/accounts look. Everything is local
-(`chrome.storage.local`); nothing is sent anywhere. Current version: see `manifest.json` (0.5.1).
+(`chrome.storage.local`); nothing is sent anywhere. Current version: see `manifest.json` (0.5.2).
 
 ## Files
 - `manifest.json`: content script on threads.com / threads.net; permissions `storage`, `unlimitedStorage`.
@@ -14,6 +14,7 @@ signals about (a) how the feed is being shaped and (b) how authentic posts/accou
   overlay panel (`refresh`), 48h history graph, per-post pill (`ensureBadge`, `placeInActionRow`), profile-page card (`renderProfileCard`),
   CSV/JSON export, backup import (`mergeStore`).
 - `test/smoke.js`: `node test/smoke.js` checks scoring behavior. Run it plus `node --check content.js score.js` after every edit.
+- `test/dom/`: extraction fixture built from a real DOM sample (quoted post, title-only icons); run instructions in `check.js`. Run it after touching `SEL`/`extract`/`metric`.
 
 ## Product decisions already made (do not re-litigate)
 - **Passive only.** Mike wants "look over my shoulder": the extension reads what is on screen as he reads. Claude must not scroll, click, or
@@ -27,7 +28,8 @@ signals about (a) how the feed is being shaped and (b) how authentic posts/accou
 - Feed readings (0..1 each): normal, baseline (shown as "Reticulating splines — continue scrolling"), throttled (weakest, inferred from stale posts),
   emotional, shaped. Window = last 30 read posts, needs 10. History sampled every 5 min, drawn as 15-minute buckets over 48 h.
   Planned idea: detect throttling by comparing Following tab vs For You; not built.
-- Golden pulsing **BAIT** chip (ONE shared 100 ms timer sets its glow; never a per-element animation, see the leak section; respects reduced-motion) with bait kinds on hover; per-account bait rate (>=40% of >=3 posts => +0.15).
+- **Bait = obvious farming only, informational only (v0.5.2, Mike's call).** He found nearly every BAIT-tagged post was one he wanted to read. Kept: comment-farm (comment below/if, drop a heart/emoji or drop ... below, tag someone, say yes/amen, repost if, short question + pointing emoji), giveaway / follow-for-follow, bare `ratio` reply (as a plain word it was 25 of 32 hype hits). Removed: opinion hooks, hype phrases, relatable templates (`template` is still computed, not tagged). Bait no longer makes a post Emotional, no longer reddens the dot, and no longer counts in `acctScore`/`judgeAccount`. Nov 4 export: 73 tagged -> 5. Do not re-add conversational patterns.
+- Golden pulsing **BAIT** chip (ONE shared 100 ms timer sets its glow; never a per-element animation, see the leak section; respects reduced-motion) with bait kinds on hover.
 - Phone use is the Threads app, which extensions cannot see; Mike tracks desktop (Chrome on his Mac "Keystone") only. A Safari/iOS port with CloudKit merge-sync was scoped and declined.
 - Not for store distribution; maybe 2-3 friends via zip, no support, lookups off by default.
 
@@ -54,7 +56,7 @@ Only `ctx === 'home'` posts are rated (profile/thread posts show no chip); the u
 re-checked, because the Follow badge can render late. Priority: Shaped > Emotional > Throttled > Baseline > Normal, else Neutral (needs score >= 0.4):
 - **Throttled**: older than `STALE_H` = 24 h AND from an account you do not follow (older posts filling in for fresh ones). Score 0.5 at 24 h rising to 1.0 at 4 days. Followed accounts' old posts are Normal (they just post rarely).
 - **Baseline**: you saw this exact post in an earlier feed view (> 10 min ago; the guard avoids Threads recycling nodes while you scroll), or a non-followed author already had >= 2 of your last 40 arrivals.
-- **Emotional**: charged language (`emo`), heavy arguing underneath (reply:like, needs engagement counts which are still empty), or non-template engagement bait.
+- **Emotional**: charged language (`emo`), or heavy arguing underneath (reply:like; counts are read from v0.5.2). Not bait.
 - **Shaped**: wording nearly identical to another author (only later copies are flagged, the first one keeps its label) or an account with the `flag` level.
 - **Normal**: followed and not stale (assumes: on the home feed, NO Follow control means followed; unverified on real Threads). **Neutral** = fresh post from a stranger with nothing unusual (46% of the real feed).
 Headline logic: the strongest anomaly bar >= 0.4 names the feed; Normal only when nothing else shows. `SAT.throttled = 0.4` (needs ~5 stale strangers in the last 30) was chosen from the real data: it fired in 30% of morning windows and ~0% of the rest of the day; 0.25 fired all day.
@@ -103,8 +105,14 @@ The pane is usually **hidden**: `document.visibilityState` is 'hidden', smooth s
 version, and make fixtures poll scrollTop instead of listening for scroll events. Tool calls time out at 45 s, so start long jobs and poll in separate calls. The real Threads markup is still unverified.
 
 ## Known gaps / untested (verify against the real page first)
-- **Threads DOM selectors are guesses**: post container `[data-pressable-container="true"]`, links `a[href*="/post/"]`, `time[datetime]`,
-  icons via `svg[aria-label="Like"|"Reply"|"Repost"]`, follow control via `svg[aria-label="Follow"]`. If the panel stays on "Calibrating" or no pills appear, fix `SEL`/`extract` first.
+- **Threads DOM selectors** (v0.5.2, checked against a real home-feed DOM sample from Nov 2026): post container `[data-pressable-container="true"]`, links `a[href*="/post/"]`, `time[datetime]` are confirmed.
+  Action icons are `<svg role="img"><title>Like</title>` with NO aria-label (so every likes/replies/reposts value before 0.5.2 is empty); Follow has `aria-label="Follow"`.
+  `iconName()` reads aria-label or the child `<title>`; `metric()` reads the count only inside the icon's own button (climbing to the row read the next button's count).
+  **Quoted posts are nested containers**: the quote's action row comes first in DOM order. All reads go through `ownAll/ownOne` (element's nearest container must be this post);
+  on the home feed nested containers are skipped (before 0.5.2 they were recorded as followed, empty-text "Normal" arrivals: ~80 of 103 empty-text home rows), the outer post stores `quote` (CSV column).
+  Thread pages (second sample): replies are SIBLING containers, not nested; a "suggested account" card is also a container but has no post link, so extract() skips it. Profile-page nesting is unverified, so nested containers outside home are still recorded.
+  While a count changes Threads renders an odometer (old and new value as groups of one-digit spans, textContent "128129"); `metric()` takes the last group. An icon with no number means 0 (Threads hides zero); null means the icon was not found.
+  First real 0.5.2 data (Nov 4 evening): 106 posts with likes, 73 with replies, 56 with reposts, 5 quotes; 33 single-digit like counts were checked (mostly thread replies) and look genuine. Fixture: `test/dom/` (structure from the sample, placeholder content).
 - About-this-profile dialog format is confirmed from a paste: `Name / Some Name (@handle) / Joined / October 2026 · 100M+` (the "100M+" meaning is unknown; stored raw as `joinedNote`, not scored).
 - The Post activity dialog parsing is verified only against a fixture built from the screenshot (52 rows, lazy loading, scan to the end). Unverified on real Threads: that Follow is a role=button/button, that rows are not virtualized away, that the time is the like time, and the second deep-lookup fetch pacing (only the first fetch was observed before the test was interrupted).
 - Join date is not in the profile HTML; it is captured only when Mike opens "About this profile". Followers/threads come from og:description meta on lookups or from page text on a profile page.
@@ -129,6 +137,6 @@ liker, likedPosts[], postN, baitN, tabs{threads|replies|reposts:{n,complete,at}}
   run `node --check`, and run `node test/smoke.js`. Tell Mike to reload at `chrome://extensions` AND refresh the Threads tab (an orphaned old script shows
   "Extension context invalidated" until the tab is refreshed; the code handles this with a "refresh this page" message).
 - Evidence of coordination to look for in exports: join-month spikes, near-duplicate phrasing across authors, late/fast likes, handles ending in many digits,
-  high output with tiny audience, high bait share. Use his `your_rating` CSV column as labels to retune weights.
+  high output with tiny audience. Use his `your_rating` CSV column as labels to retune weights.
 - Do not attribute activity to state actors from this data; at most say "coordinated, motivation unclear".
 - Mike's iCloud lesson (data loss from a beta on his main Apple ID) applies if sync is ever built: use record-based merge, not a shared file.
