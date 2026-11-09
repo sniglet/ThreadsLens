@@ -34,3 +34,26 @@ window.runDomCheck = async () => {
     'pill goes in the OUTER action row', pill && pill.parentElement.className);
   return { pass: results.every((r) => r.ok), results };
 };
+
+// Pills on a page where the quoted post is recorded too (thread/profile: nested containers are not skipped there).
+// Run on a FRESH load of index.html:  (0, eval)(await (await fetch('/test/dom/check.js')).text()); await runPillCheck()
+// Regression: the outer post used to grab the quote's pill and pills piled up in its row on every scan.
+window.runPillCheck = async () => {
+  history.replaceState(null, '', '/@outer_user/post/OUTER1');
+  window.chrome = { runtime: { id: 't', getManifest: () => ({ version: 'fixture' }) },
+    storage: { local: { get: (k, cb) => cb({}), set() {}, remove() {} } } };
+  for (const f of ['/score.js', '/content.js']) (0, eval)(await (await fetch(f, { cache: 'no-store' })).text());
+  await new Promise((r) => setTimeout(r, 4000));   // several scans: each new pill is a DOM mutation that triggers another
+  const outer = document.querySelector('#feed > [data-pressable-container]');
+  const quote = outer.querySelector(':scope [data-pressable-container]');
+  const own = (c) => [...c.querySelectorAll('.tl-badge')].filter((b) => b.closest('[data-pressable-container]') === c);
+  const results = [];
+  const ok = (c, m, got) => results.push({ ok: !!c, m, got });
+  ok(quote.dataset.tlId === 'QUOTED1', 'quote is recorded on a thread page', quote.dataset.tlId);
+  ok(own(outer).length === 1, 'outer post has exactly one pill', own(outer).length);
+  ok(own(quote).length === 1, 'quoted post has exactly one pill', own(quote).length);
+  ok(own(outer)[0] && own(outer)[0].parentElement.classList.contains('row'), 'outer pill sits in the outer row', own(outer)[0] && own(outer)[0].parentElement.className);
+  ok(document.querySelectorAll('.tl-badge').length === document.querySelectorAll('[data-tl-id]').length, 'one pill per recorded post',
+    [document.querySelectorAll('.tl-badge').length, document.querySelectorAll('[data-tl-id]').length]);
+  return { pass: results.every((r) => r.ok), results };
+};

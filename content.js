@@ -749,7 +749,11 @@
   function ensureBadge(c) {
     if (!c.isConnected) return;
     const id = c.dataset.tlId, it = itemFor(id); if (!it) return;
-    let b = c.querySelector('.tl-badge');
+    // Only THIS post's pill. A plain c.querySelector found the quoted post's pill first (its row comes earlier in the DOM),
+    // moved it into the outer row, the quote grew a new one, and pills piled up in the outer row on every scan.
+    const mine = ownAll(c, '.tl-badge');
+    mine.slice(1).forEach((x) => x.remove());   // heal any pile-up left by an older build without a reload
+    let b = mine[0] || null;
     if (!b) {
       if (getComputedStyle(c).position === 'static') c.style.position = 'relative';
       b = document.createElement('div'); b.className = 'tl-badge';
