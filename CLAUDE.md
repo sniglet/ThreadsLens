@@ -2,7 +2,7 @@
 
 Chrome MV3 extension (load unpacked) that passively reads the Threads feed as the owner (Mike) reads it and shows
 signals about (a) how the feed is being shaped and (b) how authentic posts/accounts look. Everything is local
-(`chrome.storage.local`); nothing is sent anywhere. Current version: see `manifest.json` (0.5.3).
+(`chrome.storage.local`); nothing is sent anywhere. Current version: see `manifest.json` (0.5.4).
 
 ## Files
 - `manifest.json`: content script on threads.com / threads.net; permissions `storage`, `unlimitedStorage`.
@@ -29,6 +29,7 @@ signals about (a) how the feed is being shaped and (b) how authentic posts/accou
   emotional, shaped. Window = last 30 read posts, needs 10. History sampled every 5 min, drawn as 15-minute buckets over 48 h.
   Planned idea: detect throttling by comparing Following tab vs For You; not built.
 - **Bait = obvious farming only, informational only (v0.5.2, Mike's call).** He found nearly every BAIT-tagged post was one he wanted to read. Kept: comment-farm (comment below/if, drop a heart/emoji or drop ... below, tag someone, say yes/amen, repost if, short question + pointing emoji), giveaway / follow-for-follow, bare `ratio` reply (as a plain word it was 25 of 32 hype hits). Removed: opinion hooks, hype phrases, relatable templates (`template` is still computed, not tagged). Bait no longer makes a post Emotional, no longer reddens the dot, and no longer counts in `acctScore`/`judgeAccount`. Nov 4 export: 73 tagged -> 5. Do not re-add conversational patterns.
+- **The feed readout is one line by default** (v0.5.4, Mike's request): dot + headline + chevron (drawn SVG: a text glyph read as a faint dot). Only the headline row toggles it open (bars, 48 h graph, evidence, toggles, exports); a collapsed bar is one line so any click on it expands. The choice is `settings.expanded`, remembered across reloads. The contextual likes-list tools (Scan likers / Look up) still show under the line while that dialog is open, even when collapsed.
 - Golden pulsing **BAIT** chip (ONE shared 100 ms timer sets its glow; never a per-element animation, see the leak section; respects reduced-motion) with bait kinds on hover.
 - Phone use is the Threads app, which extensions cannot see; Mike tracks desktop (Chrome on his Mac "Keystone") only. A Safari/iOS port with CloudKit merge-sync was scoped and declined.
 - Not for store distribution; maybe 2-3 friends via zip, no support, lookups off by default.

@@ -1,6 +1,6 @@
 # ThreadsLens
 Load: chrome://extensions → Developer mode → Load unpacked → select this folder. Open threads.com and read normally.
-- Overlay (top right): click to expand evidence, pause lookups, export CSV, clear data.
+- Overlay (top right): a single line (dot, headline reading, chevron). Click the headline to expand it to the bars, 48 h graph, evidence, toggles and exports; click it again to collapse. It remembers your choice across reloads. The likes-list tools appear under the line while that dialog is open.
 - Dots on posts: green no signals · red emotional/arguing · purple duplicate/flagged account · amber watch · grey not looked up.
 - "User glance" toggle (off by default): when on, looks up accounts of posts you have actually read, one every 40-110s, only while you are actively scrolling, max 25/hour, 15-min backoff on 429/5xx. Off = no extra requests at all.
 - Join date comes from you opening "About this profile" on an account (captured passively).
