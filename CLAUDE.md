@@ -2,7 +2,7 @@
 
 Chrome MV3 extension (load unpacked) that passively reads the Threads feed as the owner (Mike) reads it and shows
 signals about (a) how the feed is being shaped and (b) how authentic posts/accounts look. Everything is local
-(`chrome.storage.local`); nothing is sent anywhere. Current version: see `manifest.json` (0.5.2).
+(`chrome.storage.local`); nothing is sent anywhere. Current version: see `manifest.json` (0.5.3).
 
 ## Files
 - `manifest.json`: content script on threads.com / threads.net; permissions `storage`, `unlimitedStorage`.
@@ -112,6 +112,7 @@ version, and make fixtures poll scrollTop instead of listening for scroll events
   on the home feed nested containers are skipped (before 0.5.2 they were recorded as followed, empty-text "Normal" arrivals: ~80 of 103 empty-text home rows), the outer post stores `quote` (CSV column).
   Thread pages (second sample): replies are SIBLING containers, not nested; a "suggested account" card is also a container but has no post link, so extract() skips it. Profile-page nesting is unverified, so nested containers outside home are still recorded.
   While a count changes Threads renders an odometer (old and new value as groups of one-digit spans, textContent "128129"); `metric()` takes the last group. An icon with no number means 0 (Threads hides zero); null means the icon was not found.
+  `ensureBadge` must find the pill with `ownAll(c, '.tl-badge')`: a plain `c.querySelector` grabbed the quoted post's pill (its row is earlier in the DOM), moved it to the outer row, and pills piled up every scan on thread/profile pages (fixed 0.5.3; `runPillCheck` in test/dom/check.js, old build: 9 pills).
   First real 0.5.2 data (Nov 4 evening): 106 posts with likes, 73 with replies, 56 with reposts, 5 quotes; 33 single-digit like counts were checked (mostly thread replies) and look genuine. Fixture: `test/dom/` (structure from the sample, placeholder content).
 - About-this-profile dialog format is confirmed from a paste: `Name / Some Name (@handle) / Joined / October 2026 · 100M+` (the "100M+" meaning is unknown; stored raw as `joinedNote`, not scored).
 - The Post activity dialog parsing is verified only against a fixture built from the screenshot (52 rows, lazy loading, scan to the end). Unverified on real Threads: that Follow is a role=button/button, that rows are not virtualized away, that the time is the like time, and the second deep-lookup fetch pacing (only the first fetch was observed before the test was interrupted).
