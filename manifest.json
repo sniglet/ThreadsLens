@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ThreadsLens",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "Passive, human-paced signals about feed shaping and account authenticity on Threads. Local only.",
   "permissions": ["storage", "unlimitedStorage"],
   "host_permissions": ["https://www.threads.com/*", "https://www.threads.net/*"],

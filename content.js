@@ -438,15 +438,18 @@
   host.style.cssText = 'all:initial;position:fixed;top:8px;right:12px;z-index:2147483647';
   const root = host.attachShadow({ mode: 'open' });
   root.innerHTML = '<style>' +
-    '.bar{font:12px/1.35 -apple-system,system-ui,sans-serif;background:#111c;color:#fff;border-radius:10px;padding:8px 10px;width:260px;backdrop-filter:blur(8px);box-shadow:0 2px 12px #0006;cursor:pointer}' +
-    '.top{display:flex;align-items:center;gap:6px;font-weight:600}.dot{width:10px;height:10px;border-radius:50%}' +
+    '.bar{font:12px/1.35 -apple-system,system-ui,sans-serif;background:#111c;color:#fff;border-radius:10px;padding:8px 10px;width:260px;backdrop-filter:blur(8px);box-shadow:0 2px 12px #0006}' +
+    '.bar.c{width:auto;max-width:340px;padding:5px 10px;cursor:pointer}' +
+    '.top{display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;user-select:none}.dot{width:10px;height:10px;border-radius:50%;flex:none}' +
+    '.lab{min-width:0}.bar.c .lab{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.chev{margin-left:auto;margin-right:-1px;padding-left:8px;opacity:.85;flex:none;display:block}.top:hover .chev{opacity:1}' +
     '.row{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:11px}.row span:first-child{width:92px;opacity:.8}' +
     '.track{flex:1;height:5px;background:#fff3;border-radius:3px;overflow:hidden}.fill{height:100%}' +
     '.det{margin-top:6px;font-size:11px;opacity:.9;border-top:1px solid #fff3;padding-top:6px}.det div{margin:2px 0}' +
     'button{font:11px system-ui;margin:6px 4px 0 0;padding:2px 7px;border-radius:5px;border:1px solid #fff5;background:#fff2;color:#fff;cursor:pointer}' +
     '</style><div class="bar" id="bar"></div>';
   document.documentElement.appendChild(host);
-  let open = false;
+  const isOpen = () => store.settings.expanded === true;   // collapsed (one line) unless you expanded it; remembered across reloads
   const h = (tag, props = {}, kids = []) => {
     const e = document.createElement(tag); Object.assign(e, props);
     kids.forEach((k) => e.append(k)); return e;
@@ -604,6 +607,13 @@
     inp.click();
   };
 
+  // Right-pointing chevron = collapsed (click to expand); down-pointing = expanded.
+  const chevron = (expanded) => {
+    const svg = sv('svg', { viewBox: '0 0 10 10', width: 14, height: 14, class: 'chev' });
+    svg.append(sv('polyline', { points: expanded ? '1.5,3 5,7 8.5,3' : '3,1.5 7,5 3,8.5', fill: 'none', stroke: '#fff', 'stroke-width': 1.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+    return svg;
+  };
+
   function refresh() {
     if (dead) return;
     spikes = S.cohortSpikes(store.accounts);
@@ -611,13 +621,21 @@
     const items = feedReads.slice(-CFG.window).map(itemFor).filter(Boolean);
     const st = S.feedState(items, CFG.minWindow);
     sampleHistory(st);
+    const expanded = isOpen();
     const bar = root.getElementById('bar'); bar.replaceChildren();
-    bar.append(h('div', { className: 'top' }, [h('span', { className: 'dot', style: 'background:' + COLORS[st.key] }), st.label]));
-    for (const [k, v] of Object.entries(st.scores)) {
-      const fill = h('div', { className: 'fill', style: 'width:' + Math.round(v * 100) + '%;background:' + COLORS[k] });
-      bar.append(h('div', { className: 'row' }, [h('span', { textContent: NAMES[k] }), h('div', { className: 'track' }, [fill]), h('span', { textContent: Math.round(v * 100) + '%', style: 'width:28px;text-align:right' })]));
+    bar.className = expanded ? 'bar' : 'bar c';
+    const top = h('div', { className: 'top', title: (expanded ? 'Click to collapse: ' : 'Click to expand: ') + st.label },
+      [h('span', { className: 'dot', style: 'background:' + COLORS[st.key] }), h('span', { className: 'lab', textContent: st.label }), chevron(expanded)]);
+    top.setAttribute('role', 'button'); top.setAttribute('aria-expanded', String(expanded));
+    bar.append(top);
+    if (expanded) {
+      for (const [k, v] of Object.entries(st.scores)) {
+        const fill = h('div', { className: 'fill', style: 'width:' + Math.round(v * 100) + '%;background:' + COLORS[k] });
+        bar.append(h('div', { className: 'row' }, [h('span', { textContent: NAMES[k] }), h('div', { className: 'track' }, [fill]), h('span', { textContent: Math.round(v * 100) + '%', style: 'width:28px;text-align:right' })]));
+      }
+      bar.append(historyGraph());
     }
-    bar.append(historyGraph());
+    // the likes-list tools are contextual (only while that dialog is open), so they stay reachable even when collapsed
     if (activityOpen || scanning || deepActive) {
       const n = likerCount(), got = Object.keys((store.likers[activityKey] || {}).handles || {}).filter((hd) => (store.accounts[hd] || {}).fetchedAt).length;
       const act = h('div', { className: 'det' }, [h('div', { textContent: 'Post activity: ' + n + ' accounts captured · ' + got + ' looked up' })]);
@@ -625,7 +643,7 @@
       if (n) act.append(h('button', { textContent: deepActive ? 'Stop lookups' : 'Look up these accounts', title: 'One profile every 20-45 s (max 90/hour) to get join date and followers; stops when done', onclick: (e) => { e.stopPropagation(); deepActive = !deepActive; refresh(); } }));
       bar.append(act);
     }
-    if (open) {
+    if (expanded) {
       const det = h('div', { className: 'det' }, st.evidence.map((t) => h('div', { textContent: t })));
       const accts = Object.values(store.accounts);
       det.append(h('div', { textContent: 'accounts: ' + accts.length + ' seen · ' + accts.filter((a) => a.fetchedAt).length + ' looked up · ' + accts.filter((a) => a.joined).length + ' with join date' + (spikes.size ? ' · join spikes: ' + [...spikes].join(', ') : '') }));
@@ -663,7 +681,10 @@
     document.querySelectorAll('[data-tl-id]').forEach(ensureBadge);
     renderProfileCard();
   }
-  root.getElementById('bar').addEventListener('click', () => { open = !open; refresh(); });
+  root.getElementById('bar').addEventListener('click', (e) => {
+    if (isOpen() && !(e.target.closest && e.target.closest('.top'))) return;   // expanded: only the headline row collapses it
+    store.settings.expanded = !isOpen(); save(); refresh();
+  });
 
   // ---------- per-post badge: dot + manual genuineness rating (- 0 +) ----------
   const rate = (handle, d, axis = 'rating') => {
